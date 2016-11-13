@@ -65,13 +65,8 @@ function Shmutex() {
     }
 
     // Aliases
-    this.read = (func) => {
-        return lock(func);
-    };
-
-    this.write = (func) => {
-        return lock(func, true);
-    };
+    this.read = (func) => lock(func);
+    this.write = (func) => lock(func, true);
 }
 
 module.exports = () => new Shmutex();

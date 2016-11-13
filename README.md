@@ -17,7 +17,7 @@ Example:
 ```javascript
 "use strict";
 
-const shmutex = require("shmutex"),
+const shmutex = require("."),
       q       = require("q");
 
 let myShmutex = shmutex(),
@@ -25,13 +25,13 @@ let myShmutex = shmutex(),
 
 let startMs = Date.now();
 
-write("Write #1", "oh", 5000);
-read("Read  #3", 10000);
-read("Read  #2", 5000);
-read("Read  #1", 2500);
-write("Write #2", "hi", 5000);
+testWrite("Write #1", "oh", 5000);
+testRead("Read  #1", 10000);
+testRead("Read  #2", 5000);
+testRead("Read  #3", 2500);
+testWrite("Write #2", "hi", 5000);
 q().delay(16000)
-    .done(() => read("Read  #4", 500));
+    .done(() => testRead("Read  #4", 1000));
 
 // Output:
 //  Write #1 (5004ms): oh
@@ -39,9 +39,9 @@ q().delay(16000)
 //  Read  #2 (10028ms): oh
 //  Read  #1 (15027ms): oh
 //  Write #2 (20029ms): hi
-//  Read  #4 (20530ms): hi
+//  Read  #4 (21030ms): hi
 
-function read(label, delay) {
+function testRead(label, delay) {
     myShmutex.read(() => {
         return q()
             .delay(delay)
@@ -49,7 +49,7 @@ function read(label, delay) {
     });
 }
 
-function write(label, value, delay) {
+function testWrite(label, value, delay) {
     myShmutex.write(() => {
         return q()
             .delay(delay)
