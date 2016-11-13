@@ -9,7 +9,7 @@ function Shmutex() {
         queue.push({
             func,
             exclusive: !!exclusive
-        })
+        });
 
         flush();
     }
@@ -19,6 +19,9 @@ function Shmutex() {
         if(exclusiveInProgress)
             return;
 
+        // If there are no running jobs, then prefer the first one that was queued.
+        // However, if there are shared jobs running, we can't start an exclusive one
+        // but CAN store more shared ones
         let sharedOnly = sharedInProgress > 0;
         let i = -1;
         while(++i < queue.length) {
@@ -37,12 +40,14 @@ function Shmutex() {
 
             ++sharedInProgress;
             startJob(nextJob);
-            sharedOnly = true;
+            sharedOnly = true; // Just started a shared job, so can't start an exclusive one
         }
     }
 
     function startJob(job) {
         let result = job.func();
+
+        // If a thenable was returned, wait for it to resolve. Otherwise, assume job is done
         if(result && result.then) {
             result.done(completeJob.bind(null, job));
         } else {
