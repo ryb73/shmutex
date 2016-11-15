@@ -17,7 +17,7 @@ Example:
 ```javascript
 "use strict";
 
-const shmutex = require("."),
+const shmutex = require("shmutex"),
       q       = require("q");
 
 let myShmutex = shmutex(),
@@ -28,8 +28,8 @@ let startMs = Date.now();
 testWrite("Write #1", "oh", 5000);
 testRead("Read  #1", 10000);
 testRead("Read  #2", 5000);
-testRead("Read  #3", 2500);
 testWrite("Write #2", "hi", 5000);
+testRead("Read  #3", 2500);
 q().delay(16000)
     .done(() => testRead("Read  #4", 1000));
 
