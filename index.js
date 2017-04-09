@@ -1,17 +1,24 @@
 "use strict";
 
+const q = require("q");
+
 function Shmutex() {
     let queue = [],
         exclusiveInProgress = false,
         sharedInProgress = 0;
 
     function lock(func, exclusive) {
+        let deferred = q.defer();
+
         queue.push({
             func,
-            exclusive: !!exclusive
+            exclusive: !!exclusive,
+            deferred
         });
 
         flush();
+
+        return deferred.promise;
     }
     this.lock = lock;
 
@@ -45,21 +52,35 @@ function Shmutex() {
     }
 
     function startJob(job) {
-        let result = job.func();
+        let result;
+        try {
+            result = job.func();
+        } catch(error) {
+            completeJob(job, error, true);
+            return;
+        }
 
         // If a thenable was returned, wait for it to resolve. Otherwise, assume job is done
         if(result && result.then) {
-            result.done(completeJob.bind(null, job));
+            result.done(
+                (result) => completeJob(job, result),
+                (error) => completeJob(job, error, true)
+            );
         } else {
-            completeJob(job);
+            completeJob(job, result);
         }
     }
 
-    function completeJob(job) {
+    function completeJob(job, result, rejected) {
         if(job.exclusive)
             exclusiveInProgress = false;
         else
             --sharedInProgress;
+
+        if(rejected)
+            job.deferred.reject(result);
+        else
+            job.deferred.resolve(result);
 
         flush();
     }

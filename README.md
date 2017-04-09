@@ -6,7 +6,7 @@ Clients can request either an "exclusive" (write) or "shared" (read) lock. If an
 API:
 
 - `lock(func, exclusive = false)`
-  - Requests lock and fires `func` when the lock is acquired. If `func` returns a thenable, the lock will be released when the thenable resolves. Otherwise, the lock is released when `func` returns.
+  - Requests lock and fires `func` when the lock is acquired. If `func` returns a thenable, the lock will be released when the thenable resolves. Otherwise, the lock is released when `func` returns. Returns a promise for the result of `func`.
 - `read(func)`
   - Alias for `lock(func)`
 - `write(func)`
@@ -31,7 +31,8 @@ testRead("Read  #2", 5000);
 testWrite("Write #2", "hi", 5000);
 testRead("Read  #3", 2500);
 q().delay(16000)
-    .done(() => testRead("Read  #4", 1000));
+    .then(() => testRead("Read  #4", 1000))
+    .done(() => console.log("done."));
 
 // Output:
 //  Write #1 (5004ms): oh
@@ -40,9 +41,10 @@ q().delay(16000)
 //  Read  #1 (15027ms): oh
 //  Write #2 (20029ms): hi
 //  Read  #4 (21030ms): hi
+//  done.
 
 function testRead(label, delay) {
-    myShmutex.read(() => {
+    return myShmutex.read(() => {
         return q()
             .delay(delay)
             .then(() => printProgress(label));
@@ -50,7 +52,7 @@ function testRead(label, delay) {
 }
 
 function testWrite(label, value, delay) {
-    myShmutex.write(() => {
+    return myShmutex.write(() => {
         return q()
             .delay(delay)
             .then(() => {

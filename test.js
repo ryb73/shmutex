@@ -8,7 +8,7 @@ const assert  = require("chai").assert,
       shmutex = require(".");
 
 describe("shmutex", function() {
-    it("support exclusion", function(done) {
+    it("supports exclusion", function(done) {
         let mut = shmutex();
 
         let val = false;
@@ -70,57 +70,120 @@ describe("shmutex", function() {
         });
     });
 
-    it("uses fifo when there are no running jobs (exclusive)", function(done) {
-        let mut = shmutex();
+    describe("uses fifo when there are no running jobs", function() {
+        it("exclusive", function(done) {
+            let mut = shmutex();
 
-        let arr = [];
+            let arr = [];
 
-        // Events queued in this order:
-        //  - Exclusive
-        //  - Exclusive
-        //  - Shared
-        // The events should run in this order.
+            // Events queued in this order:
+            //  - Exclusive
+            //  - Exclusive
+            //  - Shared
+            // The events should run in this order.
 
-        mut.lock(() => {
-            return q()
-                .delay(50)
-                .then(() => arr.push(1));
-        }, true);
+            mut.lock(() => {
+                return q()
+                    .delay(50)
+                    .then(() => arr.push(1));
+            }, true);
 
-        mut.lock(() => {
-            assert.deepEqual(arr, [ 1 ]);
-            done();
-        }, true);
+            mut.lock(() => {
+                assert.deepEqual(arr, [ 1 ]);
+                done();
+            }, true);
 
-        mut.lock(() => {
-            arr.push(2);
+            mut.lock(() => {
+                arr.push(2);
+            });
+        });
+
+        it("shared", function(done) {
+            let mut = shmutex();
+
+            let arr = [];
+
+            // Events queued in this order:
+            //  - Exclusive
+            //  - Shared
+            //  - Exclusive
+            // The events should run in this order.
+
+            mut.lock(() => {
+                return q()
+                    .delay(50)
+                    .then(() => arr.push(1));
+            }, true);
+
+            mut.lock(() => {
+                assert.deepEqual(arr, [ 1 ]);
+                done();
+            });
+
+            mut.lock(() => {
+                arr.push(2);
+            }, true);
         });
     });
 
-    it("uses fifo when there are no running jobs (shared)", function(done) {
-        let mut = shmutex();
+    describe("returns a promise", function() {
+        it("for result of returned promise", function() {
+            let mut = shmutex();
 
-        let arr = [];
+            let qResult = mut.lock(() => q(100));
 
-        // Events queued in this order:
-        //  - Exclusive
-        //  - Shared
-        //  - Exclusive
-        // The events should run in this order.
-
-        mut.lock(() => {
-            return q()
-                .delay(50)
-                .then(() => arr.push(1));
-        }, true);
-
-        mut.lock(() => {
-            assert.deepEqual(arr, [ 1 ]);
-            done();
+            return qResult.then((val) => {
+                assert.equal(val, 100);
+            });
         });
 
-        mut.lock(() => {
-            arr.push(2);
-        }, true);
+        it("for result of returned value", function() {
+            let mut = shmutex();
+
+            let qResult = mut.lock(() => 100);
+
+            return qResult.then((val) => {
+                assert.equal(val, 100);
+            });
+        });
+
+        it("for rejected promise", function(done) {
+            let mut = shmutex();
+
+            let rejection = new Error("rejection");
+
+            let qResult = mut.lock(() => q.reject(rejection));
+
+            qResult.catch((error) => {
+                assert.equal(error, rejection);
+                done();
+            });
+        });
+
+        it("for null rejection", function(done) {
+            let mut = shmutex();
+
+            let rejection = null;
+
+            let qResult = mut.lock(() => q.reject(rejection));
+
+            qResult.catch((error) => {
+                assert.equal(error, rejection);
+                done();
+            });
+        });
+
+        it("for uncaught error", function(done) {
+            let mut = shmutex();
+
+            let rejection = new Error("rejection");
+
+            let qResult = mut.lock(() => { throw rejection; });
+
+            qResult.catch((error) => {
+                assert.equal(error, rejection);
+                done();
+            });
+        });
     });
 });
